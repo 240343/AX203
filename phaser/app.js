@@ -252,7 +252,7 @@ function restartGame(){
   life = 3;
   player.reset(32, 400);
   lifetext.setText(life);
-  scoretext.setText(32,400):
+  scoretext.setText(32,400);
   goText.visible = false;
   scorelabel.visible = true;
   scoretext.visible = true;
