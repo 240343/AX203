@@ -7,12 +7,12 @@ var life = 3;
 function preload(){
   game.load.image('sky', 'assets/sky.png');
   game.load.image('ground', 'assets/platform.png');
+  game.load.image('platform','assets/flat phorm! lol.png');
   game.load.image('star', 'assets/star.png');
   game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
   game.load.spritesheet('baddie', 'assets/baddie.png', 32, 32);
 
-  //V2 - load health packs
-  game.load.image('health','assets/firstaid.png');
+  game.load.image('bullet', 'assets/dart.png')
 }
 
 function create(){
@@ -27,10 +27,14 @@ function create(){
   ground.scale.setTo(2, 2);
   ground.body.immovable = true;
   // Create the ledges
-  var ledge = platforms.create(400, 400, 'ground');
-  ledge.body.immovable = true;
-  ledge = platforms.create(-150, 250, 'ground');
-  ledge.body.immovable = true;
+  ledge1 = platforms.create(400, 400, 'platform');
+  ledge1.scale.setTo(0.5,0.5);
+  ledge1.body.immovable = true;
+  ledge1.body.velocity.x = 100;
+  ledge2 = platforms.create(-150, 250, 'platform');
+  ledge2.scale.setTo(0.5,0.5);
+  ledge2.body.immovable = true;
+  ledge2.body.velocity.x = 100;
   // Creating the player sprite
   player = game.add.sprite(32, 400, 'dude');
     // Animating the player sprite
@@ -48,7 +52,7 @@ function create(){
     game.physics.arcade.enable(enemy1);
     enemy1.body.bounce.y = 0.2;
     enemy1.body.gravity.y = 500;
-    enemy1.body.collideWorldBounds = true;
+    enemy1.body.collideWorldBounds = false;
 
   enemy2 = game.add.sprite(10, 20, 'baddie');
     // Animate the enemy2
@@ -57,19 +61,21 @@ function create(){
     game.physics.arcade.enable(enemy2);
     enemy2.body.bounce.y = 0.2;
     enemy2.body.gravity.y = 500;
-    enemy2.body.collideWorldBounds = true;
+    enemy2.body.collideWorldBounds = false;
 
-  enemy3 = game.add.sprite(200, 20, 'baddie');
+  enemy3 = game.add.sprite(780, 20, 'baddie');
     // Animate the enemy3
     enemy3.animations.add('left', [0,1], 10, true);
     enemy3.animations.add('right', [2,3], 10, true);
     game.physics.arcade.enable(enemy3);
     enemy3.body.bounce.y = 0.2;
     enemy3.body.gravity.y = 500;
-    enemy3.body.collideWorldBounds = true;
+    enemy3.body.collideWorldBounds = false;
 
   // Create keyboard entries
   cursors = game.input.keyboard.createCursorKeys();
+  space = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+  // game.input.keyboard.addKeyCapture(Phaser.Keyboard.SPACEBAR);
 
   // Create the stars
   stars = game.add.physicsGroup();
@@ -81,9 +87,15 @@ function create(){
     star.body.bounce.y = 0.7 + Math.random() * 0.2;
   }
 
-  //V2 - create health pack group
-  healths = game.add.physicsGroup();
-  healths.enableBody = true;
+  //create bullets
+  bullets = game.add.physicsGroup();
+  bullets.enableBody = true;
+  //bullets.physicsBodyType = Phaser.Physics.ARCADE;
+  //bullets.scale.setTo(0.25, 0.25);
+  bullets.createMultiple(20, 'bullet');
+  bullets.callAll('events.onOutOfBounds.add', 'events.onOutOfBounds', resetBullet);
+  bullets.setAll('checkWorldBounds', true);
+
 
   //set text style
   var style = {font: "bold 32px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle"};
@@ -105,19 +117,37 @@ function create(){
   lifelabel.setTextBounds(0,0,800,100);
   lifetext.setTextBounds(0,0,800,100);
 
-  //V2 - game over text
-  goText = game.add.text(0,0,'',style);
-  goText.setShadow(3,3,'rgba(0,0,0,0.5)',2);
-  goText.setTextBounds(100,200,800,100);
+  //Game Over 
+  goText = game.add.text(0,0,' ',style);
+  goText.setShadow(3,3,'rgba(0,0,0,0.5)',2)
+  goText.setTextBounds(0,200,800,100)
+  //goText.anchor.setTo(0.5, 0.5);
+  //goText.font = 'Press Start 2P';
   goText.visible = false;
+  //goText.fixedToCamera = true;
 }
 
 function update(){
+
+  if (ledge1.body.velocity.x > 0 && ledge1.x >= 800)
+            {
+                ledge1.x = -160;
+                enemy1.x = -140;
+            }
+
+  if (ledge2.body.velocity.x > 0 && ledge2.x >= 800)
+            {
+                ledge2.x = -160;
+                enemy2.x = -140;
+            }
 	//collide player and enemies with platforms
 	game.physics.arcade.collide(player, platforms);
 	game.physics.arcade.collide(enemy1, platforms);
 	game.physics.arcade.collide(enemy2, platforms);
 	game.physics.arcade.collide(enemy3, platforms);
+
+
+  var standing = player.body.blocked.down || player.body.touching.down;
 
 	//reset the player's velocity if no events.
 	player.body.velocity.x = 0;
@@ -141,25 +171,31 @@ function update(){
 		player.body.velocity.y = -300;
 	}
 
+  //shoot
+  if(space.justDown){
+    fireBullet();
+  }
+
+
 	//Enemy AI
-	if(enemy1.x > 759){
+	if(enemy1.x > ledge1.x + 200){
 		enemy1.animations.play('left');
 		enemy1.body.velocity.x = -120;
-	}else if(enemy1.x < 405){
+	}else if(enemy1.x < ledge1.x + 40){
 		enemy1.animations.play('right');
 		enemy1.body.velocity.x = 120;
 	}
-	if(enemy2.x > 200){
+	if(enemy2.x > ledge2.x + 200){
 		enemy2.animations.play('left');
 		enemy2.body.velocity.x = -80;
-	}else if(enemy2.x < 21){
+	}else if(enemy2.x < ledge2.x + 40){
 		enemy2.animations.play('right');
 		enemy2.body.velocity.x = 80;
 	}
 	if(enemy3.x > 759){
 		enemy3.animations.play('left');
 		enemy3.body.velocity.x = -80;
-	}else if(enemy3.x < 201){
+	}else if(enemy3.x < 30){
 		enemy3.animations.play('right');
 		enemy3.body.velocity.x = 80;
 	}
@@ -171,14 +207,13 @@ function update(){
 	game.physics.arcade.overlap(player, enemy2, loseLifeLeft, null, this);
 	game.physics.arcade.overlap(player, enemy3, loseLife, null, this);
 
-  //V2 - collides for health pack
-  game.physics.arcade.collide(healths, platforms);
-  game.physics.arcade.overlap(player, healths, collectHealth,null,this);
-
-  //V2 - check if there are no more lives
   if(life < 0){
     endGame();
   }
+
+  game.physics.arcade.overlap(enemy1, bullets, resetEnemy, null, this);
+  game.physics.arcade.overlap(enemy2, bullets, resetEnemyLeft, null, this);
+  game.physics.arcade.overlap(enemy3, bullets, resetEnemy, null, this);
 
 }
 
@@ -194,13 +229,7 @@ function collectStar(player,star){
 	//create new star
 	star = stars.create(Math.floor(Math.random()*750),0,'star');
 	star.body.gravity.y = 200;
-  star.body.bounce.y = 0.7 + Math.random() * 0.2;
-
-  //V2 - create health pack if collected multiple of 10
-  if(score % 10 == 0){
-    health = healths.create(Math.floor(Math.random()*750),0,'health');
-    health.body.gravity.y = 200;
-  }
+    star.body.bounce.y = 0.7 + Math.random() * 0.2;
 }
 
 //define loseLife
@@ -209,9 +238,18 @@ function loseLife(player, enemy){
 	life -= 1;
 	lifetext.setText(life);
 
+  //if(life >= 0){
 	//remove and respawn enemy
-	enemy.kill();
-	enemy.reset(760, 20);
+	 enemy.kill();
+	 enemy.reset(ledge2.x, 20);
+  // } else{
+  //   player.kill()
+  //   goText.text="GAME OVER! \n You scored " + score //\nPress Enter to try again...";
+  //   goText.visible = true;
+
+  //     //var restartButton = game.input.keyboard.addKey(Phaser.Keyboard.ENTER);
+  //     //restartButton.onDown.addOnce(restartGame);
+  // }
 }
 
 //define loseLifeLeft
@@ -222,41 +260,76 @@ function loseLifeLeft(player, enemy){
 
 	//remove and respawn enemy
 	enemy.kill();
-	enemy.reset(10, 20);
+	enemy.reset(ledge1.x, 20);
 }
 
-//V2 - define collectHealth
-function collectHealth(player,health){
-  life += 1;
-  lifetext.setText(life);
-  health.kill();
-}
-
-//V2 - define end game
 function endGame(){
   player.kill();
-  goText.text = "GAME OVER! \n You scored " + score + "\n Press Enter to try again...";
+  goText.text="GAME OVER! \n You scored " + score + "\nPress Enter to try again...";
   goText.visible = true;
+  // enemy1.kill();
+  // enemy2.kill();
+  // enemy3.kill();
   scorelabel.visible = false;
   scoretext.visible = false;
   lifelabel.visible = false;
   lifetext.visible = false;
 
-  //Call restart game when enter is pressed
   var restartButton = game.input.keyboard.addKey(Phaser.Keyboard.ENTER);
   restartButton.onDown.addOnce(restartGame);
+
 }
 
+function resetBullet(bullet) {
+  // Destroy the laser
+  bullet.kill();
+}
+
+function fireBullet() {
+  // Get the first laser that's inactive, by passing 'false' as a parameter
+  var bullet = bullets.getFirstExists(false);
+  if (bullet && cursors.left.isDown) {
+    // If we have a laser, set it to the starting position
+    bullet.reset(player.x, player.y + 15);
+    // Give it a velocity of -500 so it starts shooting
+    bullet.body.velocity.x = -300;
+  }
+  else if (bullet && cursors.right.isDown) {
+    // If we have a laser, set it to the starting position
+    bullet.reset(player.x, player.y + 15);
+    // Give it a velocity of -500 so it starts shooting
+    bullet.body.velocity.x = 300;
+  }
+ 
+}
+
+function resetEnemyLeft(enemy, bullet){
+  bullet.kill();
+  //remove and respawn enemy
+  enemy.kill();
+  enemy.reset(ledge1.x, 20);
+
+  
+}
+
+function resetEnemy(enemy, bullet){
+  bullet.kill();
+  //remove and respawn enemy
+  enemy.kill();
+  enemy.reset(ledge2.x, 20);
+
+}
+
+
 function restartGame(){
-  score = 0;
+  player.reset(32,400);
   life = 3;
-  player.reset(32, 400);
+  score = 0;
   lifetext.setText(life);
-  scoretext.setText(32,400);
-  goText.visible = false;
+  scoretext.setText(score);
   scorelabel.visible = true;
   scoretext.visible = true;
   lifelabel.visible = true;
   lifetext.visible = true;
-  
+  goText.visible = false;
 }
